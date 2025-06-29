@@ -1,4 +1,5 @@
 
+using Expenses.API.Data.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace Expenses.API
@@ -10,7 +11,7 @@ namespace Expenses.API
             var builder = WebApplication.CreateBuilder(args);
             var con = builder.Configuration.GetConnectionString("Connectionstr");
             builder.Services.AddDbContext<Data.AppDbContext>(options =>options.UseSqlServer(con));
-
+            builder.Services.AddScoped< ITransactionService,  TransactionService>();
             // Add services to the container.
 
             builder.Services.AddControllers();

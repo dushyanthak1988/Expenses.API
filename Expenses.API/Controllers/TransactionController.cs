@@ -1,7 +1,6 @@
-﻿using Expenses.API.Data;
+﻿using Expenses.API.Data.Services;
 using Expenses.API.Dtos;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace Expenses.API.Controllers
 {
@@ -9,45 +8,37 @@ namespace Expenses.API.Controllers
     [ApiController]
     public class TransactionController : ControllerBase
     {
-        private readonly AppDbContext _AppDbContext;
-
-        public TransactionController(AppDbContext appDbContext)
+        private readonly ITransactionService _service;
+        public TransactionController(ITransactionService service)
         {
-            _AppDbContext = appDbContext;
-            // Constructor logic can be added here if needed
-        }        
+            _service = service;
+        }
         [HttpPost]
         public IActionResult CreateTransaction([FromBody] PostTransactionDto payload)
         {
-            // Map DTO to Entity
-            var newTransaction = new Models.Transaction
+            var newTransactionDto = _service.Add(payload);
+
+            if (newTransactionDto != null)
             {
-                Type = payload.Type,
-                Amount = payload.Amount,
-                Category = payload.Category,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-
-            // Add to DB
-            _AppDbContext.Transactions.Add(newTransaction);
-            _AppDbContext.SaveChanges();
-
-            return Ok(new { message = "Transaction created successfully." });
+                return Ok(new { message = "Transaction created successfully." });
+            }
+            else
+            {
+                return BadRequest(new { message = "Failed to create transaction." });
+            }
         }
 
         [HttpGet]
         public IActionResult GetAll()
         {
-            var allTransactions = _AppDbContext.Transactions.ToList();
+            var allTransactions = _service.GetAll();
             return Ok(allTransactions);
         }
 
         [HttpGet("details")]
         public IActionResult GetByIdQuery([FromQuery] int id)
         {
-            var transactionDb = _AppDbContext.Transactions.FirstOrDefault(t => t.Id == id);
-
+            var transactionDb = _service.GetById(id);
             if (transactionDb == null)
             {
                 return NotFound(new { message = $"Transaction with ID {id} not found." });
@@ -58,39 +49,19 @@ namespace Expenses.API.Controllers
         [HttpPut("update/{id}")]
         public IActionResult UpdateTransaction(int id, [FromBody] PutTransactionDto payload)
         {
-            var transactionDb = _AppDbContext.Transactions.FirstOrDefault(t => t.Id == id);
+            var transactionDb = _service.Update(id, payload);
 
             if (transactionDb == null)
             {
                 return NotFound(new { message = $"Transaction with ID {id} not found." });
             }
-
-            // Update fields
-            transactionDb.Type = payload.Type;
-            transactionDb.Amount = payload.Amount;
-            transactionDb.Category = payload.Category;
-            transactionDb.UpdatedAt = DateTime.UtcNow;
-
-            // Save changes
-            _AppDbContext.Transactions.Update(transactionDb);
-            _AppDbContext.SaveChanges();
-
             return Ok(transactionDb);
         }
 
         [HttpDelete("delete/{id}")]
         public IActionResult DeleteTransaction(int id)
         {
-            var transactionDb = _AppDbContext.Transactions.FirstOrDefault(t => t.Id == id);
-
-            if (transactionDb == null)
-            {
-                return NotFound(new { message = $"Transaction with ID {id} not found." });
-            }
-
-            _AppDbContext.Transactions.Remove(transactionDb);
-            _AppDbContext.SaveChanges();
-
+            _service.Delete(id);
             return Ok(new { message = $"Transaction with ID {id} deleted successfully." });
         }
 
