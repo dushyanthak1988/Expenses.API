@@ -1,6 +1,7 @@
 ﻿using Expenses.API.Data;
 using Expenses.API.Dtos;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Expenses.API.Controllers
 {
@@ -14,29 +15,12 @@ namespace Expenses.API.Controllers
         {
             _AppDbContext = appDbContext;
             // Constructor logic can be added here if needed
-        }
-
-        [HttpGet]
-        public IActionResult getAll()
-        {
-            var allTransaction = _AppDbContext.Transactions.ToList();
-            return Ok(allTransaction);
-        }
-        [HttpGet("{id}")]
-        public IActionResult GetbyID( int id) 
-        {
-            var transactionDB = _AppDbContext.Transactions.FirstOrDefault( row=> row.Id == id );
-
-            if (transactionDB == null)
-                return NotFound();
-
-            return Ok(transactionDB);
-        }
-
+        }        
         [HttpPost]
-        public IActionResult CreateTransactions([FromBody] PostTransactionDto payload)
+        public IActionResult CreateTransaction([FromBody] PostTransactionDto payload)
         {
-            var newTransactions =  new Models.Transaction
+            // Map DTO to Entity
+            var newTransaction = new Models.Transaction
             {
                 Type = payload.Type,
                 Amount = payload.Amount,
@@ -45,10 +29,70 @@ namespace Expenses.API.Controllers
                 UpdatedAt = DateTime.UtcNow
             };
 
-            _AppDbContext.Transactions.Add(newTransactions);
+            // Add to DB
+            _AppDbContext.Transactions.Add(newTransaction);
             _AppDbContext.SaveChanges();
 
-            return Ok(new { Message = "Saved Sucessfully" });
+            return Ok(new { message = "Transaction created successfully." });
         }
+
+        [HttpGet]
+        public IActionResult GetAll()
+        {
+            var allTransactions = _AppDbContext.Transactions.ToList();
+            return Ok(allTransactions);
+        }
+
+        [HttpGet("details")]
+        public IActionResult GetByIdQuery([FromQuery] int id)
+        {
+            var transactionDb = _AppDbContext.Transactions.FirstOrDefault(t => t.Id == id);
+
+            if (transactionDb == null)
+            {
+                return NotFound(new { message = $"Transaction with ID {id} not found." });
+            }
+
+            return Ok(transactionDb);
+        }
+        [HttpPut("update/{id}")]
+        public IActionResult UpdateTransaction(int id, [FromBody] PutTransactionDto payload)
+        {
+            var transactionDb = _AppDbContext.Transactions.FirstOrDefault(t => t.Id == id);
+
+            if (transactionDb == null)
+            {
+                return NotFound(new { message = $"Transaction with ID {id} not found." });
+            }
+
+            // Update fields
+            transactionDb.Type = payload.Type;
+            transactionDb.Amount = payload.Amount;
+            transactionDb.Category = payload.Category;
+            transactionDb.UpdatedAt = DateTime.UtcNow;
+
+            // Save changes
+            _AppDbContext.Transactions.Update(transactionDb);
+            _AppDbContext.SaveChanges();
+
+            return Ok(transactionDb);
+        }
+
+        [HttpDelete("delete/{id}")]
+        public IActionResult DeleteTransaction(int id)
+        {
+            var transactionDb = _AppDbContext.Transactions.FirstOrDefault(t => t.Id == id);
+
+            if (transactionDb == null)
+            {
+                return NotFound(new { message = $"Transaction with ID {id} not found." });
+            }
+
+            _AppDbContext.Transactions.Remove(transactionDb);
+            _AppDbContext.SaveChanges();
+
+            return Ok(new { message = $"Transaction with ID {id} deleted successfully." });
+        }
+
     }
 }
